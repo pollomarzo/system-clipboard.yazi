@@ -2,7 +2,7 @@
 
 local selected_or_hovered = ya.sync(function()
 	local tab, paths = cx.active, {}
-	for _, u in pairs(tab.selected) do
+	for _, u in pairs(cx.yanked) do
 		paths[#paths + 1] = tostring(u)
 	end
 	if #paths == 0 and tab.current.hovered then
@@ -11,29 +11,38 @@ local selected_or_hovered = ya.sync(function()
 	return paths
 end)
 
+local function url_encode(str)
+    return str:gsub("([^%w-_.~])", function(c)
+        return string.format("%%%02X", string.byte(c))
+    end)
+end
+
 return {
 	entry = function()
 		ya.manager_emit("escape", { visual = true })
 
 		local urls = selected_or_hovered()
-
 		if #urls == 0 then
 			return ya.notify({ title = "System Clipboard", content = "No file selected", level = "warn", timeout = 5 })
 		end
-
-		-- ya.notify({ title = #urls, content = table.concat(urls, " "), level = "info", timeout = 5 })
-
+		
+		local url_t = {}
+		for _,file in ipairs(urls) do
+			table.insert(url_t, "file://" .. file)
+		end
+		local urls_joined = table.concat(url_t, '\n')
 		local status, err =
-				Command("cb")
-				:arg("copy")
-				:args(urls)
+				Command("wl-copy")
+				:arg("-t")
+				:arg("text/uri-list")
+				:arg(urls_joined)
 				:spawn()
 				:wait()
 
 		if status or status.succes then
 			ya.notify({
 				title = "System Clipboard",
-				content = "Succesfully copied the file(s) to system clipboard",
+				content = "Successfully copied the file(s) to system clipboard",
 				level = "info",
 				timeout = 5,
 			})
